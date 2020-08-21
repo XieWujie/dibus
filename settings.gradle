@@ -1,0 +1,2 @@
+include ':app', ':di-compiler', ':di'
+rootProject.name='Di'
