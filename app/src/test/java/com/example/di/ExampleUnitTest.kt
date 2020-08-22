@@ -17,7 +17,7 @@ class ExampleUnitTest {
         val fetcher = BusFetcher()
         fetcher.injectModule("")
         fetcher.injectReceiver(controller)
-        fetcher.injectReceiver(Controller())
+      //  fetcher.injectReceiver(Controller())
         fetcher.sendEvent(com.example.di.Test())
         fetcher.sendEvent(com.example.di.Test())
     }

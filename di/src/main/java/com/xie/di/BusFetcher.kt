@@ -177,7 +177,7 @@ import kotlin.collections.HashMap
             }
             return creator.getReceiver()
         } else {
-            receiver?:return receiver
+            receiver?.apply { return this }
             val otherKey = mete?.canProvideFrom?:return null
             val provideCreator = creators[otherKey]?: getFromFetcher(otherKey, receiver)
                     ?: return null

@@ -2,12 +2,17 @@ package com.example.di
 
 import com.xie.di.*
 
-@Service(CREATE_PER)
+@Service(CREATE_SCOPE)
 class Controller {
 
     @AutoWire
-    fun b(b: A){
-        println("autoWire"+b)
+     fun a(a: A,b: B,c: C){
+        println("autoWire abc"+a+b+c)
+    }
+
+    @AutoWire
+    fun c(c: C){
+        println("autoWire c:"+c)
     }
 
     @BusEvent(threadPolicy = THREAD_POLICY_MAIN)
@@ -18,16 +23,28 @@ class Controller {
 
 class Test()
 
-class A @Service(CREATE_PER) constructor(b: B){
+class A @Service constructor(b: B){
 
     init {
         println("init A")
     }
+
+    @Provide
+    public fun getC() :C{
+        println("getC")
+        return C()
+    }
+
 }
 
 @Service(CREATE_PER)
 class B{
     init {
         println("init B")
+    }
+}
+class C{
+    init {
+        println("init C")
     }
 }
