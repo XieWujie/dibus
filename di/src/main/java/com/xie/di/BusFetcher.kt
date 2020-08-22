@@ -1,7 +1,5 @@
-package com.xie.di.di
+package com.xie.di
 
-
-import com.xie.di.di_compiler.*
 import java.lang.ref.Reference
 import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
@@ -14,6 +12,7 @@ import kotlin.collections.HashMap
      * 存放CREATE_PER用户注册的接收者对象
      */
     private val referenceQueues = HashMap<String, ReferenceQueue<Any>>()
+     var executor:EventExecutor = AndroidEventExecutor()
 
     /**
      * 存放各种接收者类对应的对象
@@ -36,7 +35,7 @@ import kotlin.collections.HashMap
     /**
      * 所有事件的容器，一个事件可以对应多个接受者的类
      */
-    private val events = HashMap<String, ArrayList<String>>()
+    private val events = HashMap<String, ArrayList<EventMete>>()
 
     override fun fetch(key: String): Any? {
         val createStrategy = if (typeMetes.containsKey(key)) {
@@ -64,7 +63,7 @@ import kotlin.collections.HashMap
         WeakReference<Any>(receiver, qu).enqueue()
     }
 
-    override fun injectModule(name: String) {
+    override fun injectModule(name: String ) {
         try {
             val m = Class.forName("$BASE_PACKAGE.$BUS_PREFIX$name").newInstance() as BusCreatorFetcher
             busCreatorFetchers[name] = m
@@ -82,26 +81,31 @@ import kotlin.collections.HashMap
         val a = events[s]!!
         for (w in a) {
             val creator = when {
-                creators.containsKey(w) -> creators[w]
-                creatorsSingleTon.containsKey(w)->creatorsSingleTon[w]
+                creators.containsKey(w.receiver) -> creators[w.receiver]
+                creatorsSingleTon.containsKey(w.receiver)->creatorsSingleTon[w.receiver]
                 else->null
             } ?: continue
             executeEvent(creator,args.toList(),w)
         }
     }
 
-    private fun executeEvent(creator: BusCreator<*>,args: List<out Any>,key: String){
+    private fun executeEvent(creator: BusCreator<*>,args: List<Any>,mete: EventMete){
+        val key = mete.receiver
         if(referenceQueues.containsKey(key)){
            val queue = referenceQueues[key]!!
+            //换个队列存储接收者若采用原来的队列会造成死循环
             val newQueue = ReferenceQueue<Any>()
             var r:Reference<*>? = queue.poll()
             while (r != null){
                 val receiver = r.get()?:continue
                 creator.setReceiver(receiver)
-                creator.eventAware(args)
+                //执行线程调度
+                executor.execute(creator,args,mete)
+                //进入新队列
                 WeakReference(receiver,newQueue).enqueue()
                 r= queue.poll()
             }
+            //更换队列，原来的队列已空
             referenceQueues[key] = newQueue
         }else{
             creator.eventAware(args)
@@ -119,6 +123,10 @@ import kotlin.collections.HashMap
         }
     }
 
+     /**
+      * 从两个强引用队列拿取
+      * 没有就创建新的
+      */
     private fun getSingleTon(key: String): Any? {
         if (provideSingleTon.containsKey(key)) {
             return provideSingleTon[key]
@@ -129,6 +137,9 @@ import kotlin.collections.HashMap
         return findNew(key)
     }
 
+     /**
+      * 从弱引用队列获取哦，没有就获取新的
+      */
     private fun getScope(key: String): Any? {
         if (creators.containsKey(key)) {
             return creators[key]?.getReceiver()
@@ -137,7 +148,7 @@ import kotlin.collections.HashMap
             val que = referenceQueues[key]!!
             var target  = que.poll()
             while (target != null){
-                val t = target?.get()
+                val t = target.get()
                 if(t != null){
                     WeakReference(t,que).enqueue()
                     return t
@@ -149,6 +160,11 @@ import kotlin.collections.HashMap
         return findNew(key)
     }
 
+     /**
+      *
+      * @param receiver 若为空则表示要获取的真实目标是接收者，不为空则是
+      * @see BusCreator
+      */
     private fun findNew(key: String, receiver: Any? = null): Any? {
         val creator = getFromFetcher(key, receiver)
         val mete = typeMetes[key]
@@ -157,10 +173,11 @@ import kotlin.collections.HashMap
             when (strategy) {
                 CREATE_SINGLETON -> creatorsSingleTon[key] = creator
                 CREATE_SCOPE -> creators[key] = creator
-                CREATE_PER->creators[key] = creator.apply { enqueue(key,this) }
+                CREATE_PER->creators[key] = creator.apply {  receiver?:enqueue(key,this.getReceiver()!!) }
             }
             return creator.getReceiver()
         } else {
+            receiver?:return receiver
             val otherKey = mete?.canProvideFrom?:return null
             val provideCreator = creators[otherKey]?: getFromFetcher(otherKey, receiver)
                     ?: return null
@@ -173,6 +190,10 @@ import kotlin.collections.HashMap
         }
     }
 
+     /**
+      * 获取
+      * @see BusCreator
+      */
     private fun getFromFetcher(key: String, receiver: Any? = null): BusCreator<*>? {
         if ((typeMetes.containsKey(key) && typeMetes[key]!!.isService) || receiver != null)
             for ((_, value) in busCreatorFetchers) {

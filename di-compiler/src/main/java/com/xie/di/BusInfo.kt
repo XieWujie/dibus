@@ -1,8 +1,10 @@
-package com.xie.di.di_compiler
+package com.xie.di
 
 data class BusEventInfo(val functionName:String, val argsSignature:String, val thread:Int)
 
 data class ServiceInfo(val argsSignature: String)
+
+data class EventMete(val receiver:String,val thread:Int)
 
 data class AutoWireInfo(val name: String,val argsSignature: String,val wireType:Int)
 

@@ -1,6 +1,5 @@
-package com.xie.di.di
+package com.xie.di
 
-import com.xie.di.di_compiler.Fetcher
 
 class Bus private constructor(){
 

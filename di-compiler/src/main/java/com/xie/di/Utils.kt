@@ -1,9 +1,7 @@
-package com.xie.di.di_compiler
+package com.xie.di
 
 import com.squareup.javapoet.ClassName
 import java.lang.reflect.*
-import java.lang.reflect.Array
-import java.util.*
 import javax.lang.model.element.Element
 import javax.lang.model.element.ExecutableElement
 
@@ -19,19 +17,7 @@ object Utils {
         return Pair(pak,name)
     }
 
-    fun getParameterUpperBound(
-        index: Int,
-        type: ParameterizedType
-    ): Type {
-        val types = type.actualTypeArguments
-        require(!(index < 0 || index >= types.size)) { "Index " + index + " not in range [0," + types.size + ") for " + type }
-        val paramType = types[index]
-        return if (paramType is WildcardType) {
-            paramType.upperBounds[0]
-        } else paramType
-    }
-
-    fun getSignatureFromArgs(args:kotlin.Array<out Any>):String{
+    fun getSignatureFromArgs(args: Array<out Any>):String{
         if(args.size == 1){
             return args[0]::class.java.canonicalName
         }

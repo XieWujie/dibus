@@ -1,10 +1,9 @@
-package com.xie.di.di_compiler
+package com.xie.di
 
 
 import com.google.auto.service.AutoService
 import com.squareup.javapoet.*
 import java.io.IOException
-import java.lang.StringBuilder
 import java.util.*
 import javax.annotation.processing.*
 import javax.lang.model.element.*
@@ -123,6 +122,8 @@ class BusProcessor : AbstractProcessor() {
                 eventAwareMethod.beginControlFlow("if(args.get(0) instanceof \$T)", types[0])
                         .addStatement("instance.${event.functionName}((\$T)args.get(0))", types[0])
                         .endControlFlow()
+            }else if(types.isEmpty()){
+                throw RuntimeException("@busEvent不能在无参方法中执行")
             }
         }
         return eventAwareMethod.build()
@@ -241,8 +242,9 @@ class BusProcessor : AbstractProcessor() {
 
         //返回能处理的事件类型
         val listType = ClassName.get(ArrayList::class.java)
+        val meteType =  ClassName.get(EventMete::class.java)
         val ep = ParameterizedTypeName.get(ClassName.get(HashMap::class.java), ClassName.get(String::class.java),
-                ParameterizedTypeName.get(listType, ClassName.get(String::class.java)))
+                ParameterizedTypeName.get(listType,meteType))
         val supportEventTypeMethod = MethodSpec.methodBuilder("supportEventType")
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(Override::class.java)
@@ -252,11 +254,11 @@ class BusProcessor : AbstractProcessor() {
 
         for (event in info.busEvent) {
             supportEventTypeMethod.beginControlFlow("if(map.containsKey(\$S))", event.argsSignature)
-                    .addStatement("map.get(\$S).add(\$S)", event.argsSignature, info.receiverClass)
+                    .addStatement("map.get(\$S).add(new \$T(\$S,${event.thread}))", event.argsSignature,meteType, info.receiverClass)
                     .endControlFlow()
                     .beginControlFlow("else")
-                    .addStatement("ArrayList<String> list = new ArrayList<String>()")
-                    .addStatement("list.add(\$S)", info.receiverClass)
+                    .addStatement("ArrayList<\$T> list = new ArrayList<\$T>()",meteType,meteType)
+                    .addStatement("list.add(new \$T(\$S,${event.thread}))", meteType,info.receiverClass)
                     .addStatement("map.put(\$S,list)", event.argsSignature)
                     .endControlFlow()
         }
@@ -363,7 +365,7 @@ class BusProcessor : AbstractProcessor() {
                     .endControlFlow()
         }
         fetcherMethod.addStatement("return null")
-        val type = TypeSpec.classBuilder("$BUS_PREFIX$moduleName")
+        val type = TypeSpec.classBuilder("${BUS_PREFIX}$moduleName")
                 .addModifiers(Modifier.PUBLIC)
                 .addMethod(typeMete())
                 .addSuperinterface(ClassName.get(BusCreatorFetcher::class.java))

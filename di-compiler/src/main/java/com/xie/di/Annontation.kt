@@ -1,4 +1,4 @@
-package com.xie.di.di_compiler
+package com.xie.di
 
 const val CREATE_PER = 4 //每次autoWire或者内部调用都会new 一次，实例会用 ReferenceQueue保存起来
 const val CREATE_SINGLETON = 5 //优先从已有的实例获取，如果没有，则会从@provide 返回的对象和@Service标识的类中获取
@@ -13,7 +13,7 @@ const val CREATE_SCOPE = 6 //强引用保存，除非用户自己创建多个，
  */
 @Target(AnnotationTarget.CLASS,AnnotationTarget.CONSTRUCTOR)
 @Retention(AnnotationRetention.BINARY)
-annotation class Service(val createModel:Int = CREATE_PER)
+annotation class Service(val createModel:Int = CREATE_SCOPE)
 
 //在public属性或者方法中使用，kotlin中在属性中使用会有错误，因为kotlin属性默认非public
 @Target(AnnotationTarget.FIELD,AnnotationTarget.FUNCTION)
@@ -23,7 +23,7 @@ annotation class AutoWire
 //在public方法中使用
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.BINARY)
-annotation class BusEvent(val threadPolicy:Int = 0,val tag:String= "")
+annotation class BusEvent(val threadPolicy: Int = 0)
 
 
 //在public方法中使用，如果在@service标识的类中使用，provide会自动生效，不需要提前初始化对象

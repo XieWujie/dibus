@@ -1,4 +1,4 @@
-package com.xie.di.di_compiler
+package com.xie.di
 
  interface BusCreator<T>{
 
@@ -15,7 +15,7 @@ package com.xie.di.di_compiler
 
     fun provide(returnTypeName:String):Any?
 
-    fun supportEventType(events:HashMap<String,ArrayList<String>>)
+    fun supportEventType(events:HashMap<String,ArrayList<EventMete>>)
 
 
 }
