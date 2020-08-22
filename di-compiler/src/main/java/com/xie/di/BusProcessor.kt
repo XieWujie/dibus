@@ -270,7 +270,6 @@ class BusProcessor : AbstractProcessor() {
                 .addAnnotation(Override::class.java)
                 .addParameter(ParameterSpec.builder(ClassName.get(Any::class.java), "receiver").build())
                 .addStatement("this.instance = (\$T)receiver", instanceType)
-                .addStatement("autoWire()")
                 .build()
 
 

@@ -12,7 +12,7 @@ import kotlin.collections.HashMap
      * 存放CREATE_PER用户注册的接收者对象
      */
     private val referenceQueues = HashMap<String, ReferenceQueue<Any>>()
-     var executor:EventExecutor = AndroidEventExecutor()
+     var executor:EventExecutor = DefaultExecutor()
 
     /**
      * 存放各种接收者类对应的对象
@@ -214,10 +214,14 @@ import kotlin.collections.HashMap
             creators.containsKey(key) -> {
                 creators[key]?.apply {
                     setReceiver(any)
+                    autoWire()
                 }
             }
             creatorsSingleTon.containsKey(key) -> {
-                creatorsSingleTon[key]?.apply { setReceiver(any) }
+                creatorsSingleTon[key]?.apply {
+                    setReceiver(any)
+                    autoWire()
+                }
             }
             else -> {
                 findNew(key, any)

@@ -22,7 +22,14 @@ class AndroidEventExecutor:EventExecutor{
             }
             else-> creator.eventAware(args)
         }
-       // creator.eventAware(args)
+
     }
 
+}
+
+class DefaultExecutor:EventExecutor{
+
+    override fun execute(creator: BusCreator<*>, args: List<Any>, mete: EventMete) {
+         creator.eventAware(args)
+    }
 }

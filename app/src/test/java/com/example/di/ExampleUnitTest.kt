@@ -1,5 +1,6 @@
 package com.example.di
 
+import com.xie.di.BusFetcher
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -12,6 +13,12 @@ import org.junit.Assert.*
 class ExampleUnitTest {
     @Test
     fun addition_isCorrect() {
-        assertEquals(4, 2 + 2)
+        val controller = Controller()
+        val fetcher = BusFetcher()
+        fetcher.injectModule("")
+        fetcher.injectReceiver(controller)
+        fetcher.injectReceiver(Controller())
+        fetcher.sendEvent(com.example.di.Test())
+        fetcher.sendEvent(com.example.di.Test())
     }
 }
