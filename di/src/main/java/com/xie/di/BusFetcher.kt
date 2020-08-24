@@ -12,7 +12,7 @@ import kotlin.collections.HashMap
      * 存放CREATE_PER用户注册的接收者对象
      */
     private val referenceQueues = HashMap<String, ReferenceQueue<Any>>()
-     var executor:EventExecutor = DefaultExecutor()
+     var executor:EventExecutor = AndroidEventExecutor()
 
     /**
      * 存放各种接收者类对应的对象
@@ -38,15 +38,19 @@ import kotlin.collections.HashMap
     private val events = HashMap<String, ArrayList<EventMete>>()
 
     override fun fetch(key: String): Any? {
+        var k = key
         val createStrategy = if (typeMetes.containsKey(key)) {
-            typeMetes[key]!!.createStrategy
+            typeMetes[key]!!.run {
+                if(isService)k = this.canProvideFrom
+                createStrategy
+            }
         } else {
             CREATE_SCOPE
         }
         return when (createStrategy) {
-            CREATE_PER -> getNewObject(key)
-            CREATE_SCOPE -> getScope(key)
-            CREATE_SINGLETON -> getSingleTon(key)
+            CREATE_PER -> getNewObject(k)
+            CREATE_SCOPE -> getScope(k)
+            CREATE_SINGLETON -> getSingleTon(k)
             else -> throw IllegalArgumentException("传入的createStrategy不能处理")
         }
     }
@@ -122,6 +126,9 @@ import kotlin.collections.HashMap
             findNew(key)
         }
     }
+     override fun injectModule(moduleName:String, busCreatorFetcher: BusCreatorFetcher) {
+         busCreatorFetchers[moduleName] = busCreatorFetcher
+     }
 
      /**
       * 从两个强引用队列拿取

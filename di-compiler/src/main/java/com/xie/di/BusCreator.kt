@@ -40,6 +40,8 @@ interface Fetcher{
     //添加模块，会使得该模块下@provide和@service 即刻生效，@busEvent、@autoWare需要对象传教才生效
     fun injectModule(name: String)
 
+    fun injectModule(moduleName:String,busCreatorFetcher: BusCreatorFetcher)
+
     /**
      * 发送事件，可以有多个非空参数，若存在可能为空的参数，使用其他对象包装起来
      * 只有容器内存在的对象才能接受事件，不包括@service下的对象

@@ -1,37 +1,38 @@
 package com.example.di
 
 import com.xie.di.*
+import java.io.Closeable
+import java.io.Serializable
 
-@Service(CREATE_SCOPE)
+
 class Controller {
 
     @AutoWire
-     fun a(a: A,b: B,c: C){
-        println("autoWire abc"+a+b+c)
+    fun u(closeable: Closeable){
+
     }
 
     @AutoWire
     fun c(c: C){
-        println("autoWire c:"+c)
+
     }
 
-    @BusEvent(threadPolicy = THREAD_POLICY_MAIN)
-    public fun event(test: Test){
-        println("event:"+Thread.currentThread().toString())
-    }
 }
+
+open class Parent :Serializable,Cloneable
 
 class Test()
 
-class A @Service constructor(b: B){
+class A @Service constructor(b: B):Parent(),Closeable{
 
-    init {
-        println("init A")
+
+
+    override fun close() {
+
     }
-
     @Provide
     public fun getC() :C{
-        println("getC")
+
         return C()
     }
 
@@ -39,12 +40,8 @@ class A @Service constructor(b: B){
 
 @Service(CREATE_PER)
 class B{
-    init {
-        println("init B")
-    }
+
 }
 class C{
-    init {
-        println("init C")
-    }
+
 }
