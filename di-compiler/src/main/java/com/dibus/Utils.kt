@@ -1,11 +1,12 @@
-package com.xie.di
+package com.dibus
 
 import com.squareup.javapoet.ClassName
-import java.lang.reflect.*
+import java.util.*
 import javax.lang.model.element.Element
 import javax.lang.model.element.ExecutableElement
+import kotlin.reflect.KClass
 
-object Utils {
+internal object Utils {
 
     fun getClassNameFromPath(path:String):Pair<String,String>{
         val index = path.lastIndexOf(".")
@@ -47,8 +48,29 @@ object Utils {
         return signature.split(",")
     }
 
+    fun getClassFromAnnotation(from:KClass<*>,element: Element,key:String): String? {
+        val annotationMirrors = element.annotationMirrors
+        for (annotationMirror in annotationMirrors) {
+            if (from.java.name == annotationMirror.annotationType.toString()) {
+                val keySet = annotationMirror.elementValues.keys
+                for (executableElement in keySet) {
+                    if (Objects.equals(executableElement.simpleName.toString(), key)) {
+                        return annotationMirror.elementValues[executableElement]!!.value.toString()
+                    }
+                }
+            }
+        }
+        return null
+    }
+
     fun getClassName(path:String):ClassName{
         val (pkg,name) = getClassNameFromPath(path)
         return ClassName.get(pkg,name)
     }
+
+    fun buildScopeKey(typeName:String,scope:String?):String{
+       return if(scope.isNullOrEmpty()) typeName
+      else  "$typeName&&$scope"
+    }
+
 }

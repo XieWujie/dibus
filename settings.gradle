@@ -1,2 +1,4 @@
-include ':app', ':di-compiler', ':di'
+include ':di'
+include ':di-compiler'
+include ':app'
 rootProject.name='Di'

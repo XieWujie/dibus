@@ -8,6 +8,9 @@ import com.xie.di.BusFetcher
 
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.xie.di.AutoWire
+import com.xie.di.Provide
+import com.xie.di.Service
 
 import org.junit.Assert.*
 import java.util.concurrent.Executors
@@ -20,15 +23,17 @@ import java.util.concurrent.Executors
 @RunWith(AndroidJUnit4::class)
 class ExampleInstrumentedTest {
 
+
+
     @Test
-    fun useAppContext() {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.example.di", appContext.packageName)
-        val controller = Controller()
+    fun main(){
         val fetcher = BusFetcher()
         fetcher.injectModule("")
-        fetcher.injectReceiver(controller)
-        Executors.newSingleThreadExecutor().submit {   fetcher.sendEvent(com.example.di.Test()) }.get()
+        val need = Need()
+        fetcher.injectReceiver(need)
+        println(need.userName)
+
     }
+
 }
+
