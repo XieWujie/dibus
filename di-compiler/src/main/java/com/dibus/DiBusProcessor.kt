@@ -3,13 +3,14 @@ package com.dibus
 import com.google.auto.service.AutoService
 import com.squareup.javapoet.*
 import java.io.IOException
+import java.lang.IllegalArgumentException
 import java.lang.ref.WeakReference
 import javax.annotation.processing.*
 import javax.lang.model.element.*
 
 @Suppress("MISSING_DEPENDENCY_CLASS")
 @AutoService(Processor::class)
-class DiBusProcessor : AbstractProcessor() {
+internal class DiBusProcessor : AbstractProcessor() {
 
     private lateinit var filer: Filer
     private lateinit var moduleName: String
@@ -23,7 +24,8 @@ class DiBusProcessor : AbstractProcessor() {
         Scope::class.java.canonicalName,
         Provide::class.java.canonicalName,
         ViewModelService::class.java.canonicalName,
-        Register::class.java.canonicalName
+        Register::class.java.canonicalName,
+        LifeCycle::class.java.canonicalName
     )
 
     override fun init(processing: ProcessingEnvironment) {
@@ -60,6 +62,10 @@ class DiBusProcessor : AbstractProcessor() {
         for(e in scopeElement){
             fetchScopeInfo(e)
         }
+        val lifeCycleElement = p1.getElementsAnnotatedWith(LifeCycle::class.java)
+        for(e in lifeCycleElement){
+            fetchLifeCycleInfo(e)
+        }
         val registerElement = p1.getElementsAnnotatedWith(Register::class.java)
         for(e in registerElement){
             getRegisterInfo(e)
@@ -68,11 +74,19 @@ class DiBusProcessor : AbstractProcessor() {
         for (info in busInfos) {
             creatorHandler(info.value)
         }
+
         busInfos.clear()
         staticInfo.clear()
         return true
     }
 
+    private fun fetchLifeCycleInfo(e:Element){
+        if(e !is TypeElement)return
+        val scope =  e.getAnnotation(LifeCycle::class.java).scope
+        val className = Utils.getClassName(e.qualifiedName.toString())
+        val info = busAwareInfo(className.canonicalName())
+        info.lifeCycleInfo = LifeCycleInfo(if(scope.isEmpty()) className.simpleName() else scope)
+    }
     private fun getRegisterInfo(e: Element){
         val createStrategy = e.getAnnotation(Register::class.java).createStrategy
         val canprovide:String
@@ -161,18 +175,26 @@ class DiBusProcessor : AbstractProcessor() {
         for(event in info.busEvent){
             val argsType = Utils.getFieldFromSignature(event.argsSignature).map { Utils.getClassName(it) }.toTypedArray()
             val builder = StringBuilder()
+            val argsName = "${event.functionName}_args"
             for(t in argsType.indices){
-                builder.append("(\$T)args[$t],")
+                builder.append("(\$T)$argsName[$t],")
             }
             builder.deleteCharAt(builder.length-1)
           val c = "\$T ${event.functionName} =  new \$T<\$T>(${event.thread}){\n" +
                   "      @Override\n" +
-                  "      public void realExecutor(\$T receiver,Object ...args) {\n" +
+                  "      public void realExecutor(\$T receiver,Object ...$argsName) {\n" +
                   "        receiver.${event.functionName}(${builder.toString()});\n" +
                   "      }\n" +
                   "    }\n"
+
             method.addStatement(c,executorType,executorType,instanceType,instanceType,*argsType)
                 .addStatement("\$T.registerEvent(\$S,${event.functionName},receiver)",dibusType,event.argsSignature)
+            if(event.stick){
+                method.addStatement("Object [] $argsName = \$T.findStickEvent(\$S)",dibusType,event.argsSignature)
+                    .beginControlFlow("if($argsName!= null)")
+                    .addStatement("${event.functionName}.execute(receiver,${builder.toString()})",*argsType)
+                    .endControlFlow()
+            }
         }
         return method.build()
     }
@@ -364,7 +386,6 @@ class DiBusProcessor : AbstractProcessor() {
 
         for (autoWire in info.autoWire) {
             val instanceType = Utils.getFieldFromSignature(autoWire.argsSignature)
-            val sArgj = if(autoWire.scope == null) "null" else "\"${autoWire.scope}\""
             if (instanceType.size == 1) {
                 val typeName = Utils.getClassName(instanceType[0])
                 val returnName = "${autoWire.name}_fun"
@@ -452,19 +473,45 @@ class DiBusProcessor : AbstractProcessor() {
             .addModifiers(Modifier.PUBLIC,Modifier.STATIC)
             .addParameter(instanceType,"receiver")
             .addCode(setInstance("receiver",busAwareInfo,instanceType))
-            .addStatement("autoWire(receiver)")
+        busAwareInfo.lifeCycleInfo?.apply {
+            method.addStatement("\$T.registerScope(\$S,receiver)",dibusType,scope)
+        }
+            method.addStatement("autoWire(receiver)")
         if(busAwareInfo.busEvent.isNotEmpty()){
             method.addStatement("registerEvents(receiver)")
         }
         return method.build()
     }
 
-    private fun provideMethod(busAwareInfo: BusAwareInfo,provideInfo: ProvideInfo):MethodSpec{
-        return MethodSpec.methodBuilder(provideInfo.functionName)
+    private fun provideMethod(busAwareInfo: BusAwareInfo,provideInfo: ProvideInfo,typeSpec: TypeSpec.Builder):MethodSpec{
+      val returnType = Utils.getClassName(provideInfo.returnType)
+        val returnName = returnType.simpleName().toLowerCase()
+       val method = MethodSpec.methodBuilder(provideInfo.functionName)
             .addModifiers(Modifier.PUBLIC,Modifier.STATIC)
-            .returns(Utils.getClassName(provideInfo.returnType))
-            .addStatement("return get().${provideInfo.functionName}()")
-            .build()
+            .returns(returnType)
+        return when(provideInfo.createStrategy){
+             CREATE_PER->method.addStatement("return get().${provideInfo.functionName}()")
+             CREATE_SCOPE->{
+                 val weakReferenceType = ClassName.get(WeakReference::class.java)
+                 val wt = ParameterizedTypeName.get(weakReferenceType,returnType)
+                 typeSpec.addField(wt,returnName,Modifier.STATIC,Modifier.PRIVATE)
+                 method.addStatement("\$T receiver = null",returnType)
+                     .beginControlFlow("if($returnName == null ||(receiver=$returnName.get())==null)")
+                     .addStatement("receiver = get().${provideInfo.functionName}()")
+                     .addStatement("$returnName = new \$T(receiver)",weakReferenceType)
+                     .endControlFlow()
+                     .addStatement("return receiver")
+             }
+             CREATE_SINGLETON->{
+                 typeSpec.addField(returnType,returnName,Modifier.STATIC,Modifier.PRIVATE)
+                 method
+                     .beginControlFlow("if($returnName == null)")
+                     .addStatement("$returnName = get().${provideInfo.functionName}()")
+                     .endControlFlow()
+                     .addStatement("return $returnName")
+             }
+            else->throw IllegalArgumentException("不支持${provideInfo.createStrategy}")
+         }.build()
     }
 
     private fun creatorHandler(info: BusAwareInfo) {
@@ -481,7 +528,7 @@ class DiBusProcessor : AbstractProcessor() {
             .addMethod(injectMethod(instanceType,busAwareInfo = info))
 
           for(provide in info.provideInfo){
-              type.addMethod(provideMethod(info,provide))
+              type.addMethod(provideMethod(info,provide,type))
           }
         if(info.service != null){
             type.addMethod(createIsViewModelMethod(info))
@@ -537,7 +584,7 @@ class DiBusProcessor : AbstractProcessor() {
         return if (busInfos.containsKey(key)) {
             busInfos[key]!!
         } else {
-            val info = BusAwareInfo(key, ArrayList(), null, ArrayList(), ArrayList(),ArrayList())
+            val info = BusAwareInfo(key, ArrayList(), null, ArrayList(), ArrayList(),null,ArrayList())
             busInfos[key] = info
             info
         }

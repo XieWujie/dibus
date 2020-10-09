@@ -1,7 +1,6 @@
 package com.dibus
 
-internal object
-Utils {
+internal object Utils {
 
 
     fun getSignatureFromArgs(args: Array<out Any>):String{
@@ -17,5 +16,10 @@ Utils {
             builder.deleteCharAt(builder.length-1)
         }
         return builder.toString()
+    }
+
+    fun buildScopeKey(typeName:String,scope:String?):String{
+        return if(scope.isNullOrEmpty()) typeName
+        else  "$typeName&&$scope"
     }
 }

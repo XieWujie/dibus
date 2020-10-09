@@ -69,8 +69,8 @@ internal object Utils {
     }
 
     fun buildScopeKey(typeName:String,scope:String?):String{
-       return if(scope.isNullOrEmpty()) typeName
-      else  "$typeName&&$scope"
+        return if(scope.isNullOrEmpty()) typeName
+        else  "$typeName&&$scope"
     }
 
 }

@@ -39,7 +39,10 @@ annotation class AutoWire()
  * 具有@Provide和@AutoWire的功能，同时可以指定一个value，value相同才会完成注入
  * DiBus可以调用registerScope完成@Scope中@Provide的功能
  */
-@Target(AnnotationTarget.FIELD,AnnotationTarget.FUNCTION)
+@Target(AnnotationTarget.FIELD,AnnotationTarget.FUNCTION,
+    AnnotationTarget.CLASS,
+    AnnotationTarget.PROPERTY
+)
 @Inherited
 @Retention(AnnotationRetention.BINARY)
 annotation class Scope(val value:String = "",val createStrategy:Int = CREATE_SCOPE)
@@ -69,6 +72,12 @@ annotation class Provide(val createStrategy:Int = CREATE_SCOPE)
 @Target(AnnotationTarget.FUNCTION,AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)
 annotation class Register(val createStrategy:Int = CREATE_SCOPE)
+
+@Target(AnnotationTarget.CLASS)
+@Inherited
+@Retention(AnnotationRetention.BINARY)
+annotation class LifeCycle(val scope:String = "")
+
 
 const val THREAD_POLICY_MAIN = 1
 const val THREAD_POLICY_DEFAULT = 0

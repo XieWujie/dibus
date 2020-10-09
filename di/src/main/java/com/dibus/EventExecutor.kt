@@ -8,12 +8,13 @@ interface EventExecutor<in T> {
 
 abstract class AndroidEventExecutor<T>(private val threadPolicy:Int):EventExecutor<T>{
 
-    protected val handler = DiBus.androidHandler
+    private val handler = DiBus.androidHandler
 
-    override fun execute(receiver:T,vararg obj:Any) {
+
+    override fun execute(receiver:T,vararg args:Any) {
         when(threadPolicy){
-            THREAD_POLICY_MAIN->handler.post { realExecutor(receiver,*obj) }
-            THREAD_POLICY_DEFAULT->realExecutor(receiver,*obj)
+            THREAD_POLICY_MAIN->handler.post { realExecutor(receiver,*args) }
+            THREAD_POLICY_DEFAULT->realExecutor(receiver,*args)
         }
     }
 
